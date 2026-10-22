@@ -144,7 +144,22 @@ jobs:
             if printf '%s' "$KEYSTORE_B64" | tr -d ' \r\n\t' | base64 --decode > /tmp/debug.keystore 2>/dev/null \
                && keytool -list -keystore /tmp/debug.keystore -storepass android > /dev/null 2>&1; then
               mv /tmp/debug.keystore ~/.android/debug.keystore
-              echo "Using the saved signing key."
+              # tell Gradle explicitly: it does not always look in ~/.android on the build machine
+              cat >> android/app/build.gradle <<GRADLE
+
+          android {
+              signingConfigs {
+                  debug {
+                      storeFile file("$HOME/.android/debug.keystore")
+                      storePassword "android"
+                      keyAlias "androiddebugkey"
+                      keyPassword "android"
+                  }
+              }
+          }
+          GRADLE
+              keytool -list -v -keystore ~/.android/debug.keystore -storepass android | grep -m1 SHA256 | sed 's/.*SHA256: //' > "$RUNNER_TEMP/key.sha256"
+              echo "Using the saved signing key: $(cat "$RUNNER_TEMP/key.sha256" | cut -c1-23)…"
             else
               echo "::warning::The ANDROID_DEBUG_KEYSTORE_BASE64 secret is not a complete key (part of it was probably lost while pasting). Building with a random key instead — paste the secret again for future builds."
             fi
@@ -160,6 +175,14 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee -a ../build.log
           cp app/build/outputs/apk/debug/app-debug.apk ../HabitFlow.apk
+          # check the APK really carries the saved key (so updates install over the old app)
+          AS=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -1)
+          GOT=$("$AS" verify --print-certs ../HabitFlow.apk | grep -m1 "SHA-256 digest" | sed 's/.*: //' | tr -d ':' | tr a-z A-Z)
+          WANT=$(tr -d ':' < "$RUNNER_TEMP/key.sha256" 2>/dev/null || true)
+          if [ -n "$WANT" ] && [ "$GOT" != "$WANT" ]; then
+            echo "::error::The APK was not signed with the saved key (got $GOT)."; exit 1
+          fi
+          echo "::notice title=Signing key::${GOT:0:16}… $([ -n "$WANT" ] && echo '(the saved key)' || echo '(random key)')"
 
       # If anything above fails, put the reason in the "Annotations" box (easy to read on a phone).
       - name: Show why the build failed
