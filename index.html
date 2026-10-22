@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0F1E1C" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="HabitFlow" />
+  <meta name="description" content="Qur'an and mutūn memorization studio with a prayer-based daily plan." />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/png" href="./icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+  <link rel="preload" href="./fonts/amiri-quran-arabic-400-normal.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="./css/app.css" />
+  <title>HabitFlow — Ḥifẓ Studio</title>
+</head>
+<body>
+  <header class="topbar">
+    <div class="mark" aria-hidden="true">HF</div>
+    <div class="topbar-main">
+      <div class="next-prayer" id="nextPrayer">…</div>
+      <div class="topbar-sub" id="topSub"></div>
+    </div>
+    <div class="clock" id="clock" aria-label="Current time"></div>
+  </header>
+
+  <main>
+    <!-- ======================= STUDIO ======================= -->
+    <section id="view-studio" class="view active" aria-labelledby="studioTitle">
+      <h1 id="studioTitle" class="sr-only">Studio</h1>
+      <div class="studio">
+        <div class="stack">
+          <div class="studio-head">
+            <div class="spread">
+              <div class="seg" role="group" aria-label="What to memorize">
+                <button data-act="mode" data-mode="quran" id="modeQuran">Qur'an</button>
+                <button data-act="mode" data-mode="mutun" id="modeMutun">Mutūn</button>
+              </div>
+              <div id="quranPager" class="pager">
+                <button class="btn icon" data-act="page" data-delta="1" aria-label="Next page"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+                <input id="pageInput" type="number" min="1" max="604" inputmode="numeric" aria-label="Muṣḥaf page" />
+                <button class="btn icon" data-act="page" data-delta="-1" aria-label="Previous page"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+              </div>
+              <div id="mutunPager" class="pager" hidden>
+                <button class="btn icon" data-act="mpage" data-delta="1" aria-label="Next page"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+                <input id="mPageInput" type="number" inputmode="numeric" aria-label="Printed page" />
+                <button class="btn icon" data-act="mpage" data-delta="-1" aria-label="Previous page"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+              </div>
+            </div>
+            <button id="bookBtn" class="book-btn" data-act="pickBook" hidden aria-haspopup="dialog">
+              <span class="ar" id="bookBtnTitle"></span><span class="chev" aria-hidden="true">▾</span>
+              <span class="sub" id="bookBtnSub"></span>
+            </button>
+            <div id="mutunBar" class="row" hidden>
+              <select id="sectionSelect" class="grow ar-select" aria-label="Go to a bāb or section"></select>
+              <div class="seg" role="group" aria-label="How to show the text" id="mviewSeg">
+                <button data-act="mview" data-view="print">Printed</button>
+                <button data-act="mview" data-view="text">Text</button>
+              </div>
+            </div>
+            <div class="page-meta" id="pageMeta"></div>
+          </div>
+
+          <div id="pageCard" class="mushaf"></div>
+          <div class="legend faint" id="legend"><span><i class="lg active"></i>this line</span><span><i class="lg started"></i>started</span><span><i class="lg mastered"></i>mastered</span></div>
+          <p class="faint" id="pageHint">Tap a line to start on it.</p>
+        </div>
+
+        <aside class="dock" aria-label="Repetition counter">
+          <div class="spread">
+            <h2 id="unitTitle">Line 1</h2>
+            <span class="chip" id="unitState"></span>
+          </div>
+          <div id="lineZoom" class="line-zoom"></div>
+          <div class="sr-only" id="countLive" aria-live="polite"></div>
+          <div class="phases" role="group" aria-label="Phase">
+            <button class="phase" data-act="phase" data-phase="look"><span>Looking</span><b id="phLook">0/10</b></button>
+            <button class="phase" data-act="phase" data-phase="blind"><span>From memory</span><b id="phBlind">0/5</b></button>
+            <button class="phase" data-act="phase" data-phase="link"><span>Link to line 1</span><b id="phLink">0/3</b></button>
+          </div>
+          <button class="tap" id="tapBtn" data-act="tap" aria-describedby="tapWhat" type="button">
+            <span class="count num" id="tapCount">0</span>
+            <span class="what" id="tapWhat">Read the line while looking</span>
+          </button>
+          <div class="faint">Tap the button (or press Space) after every recitation.</div>
+          <div class="controls">
+            <button class="btn" data-act="listen" id="listenBtn"><svg viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></svg><span id="listenLabel">Listen</span></button>
+            <button class="btn" data-act="record" id="recordBtn"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/></svg><span id="recordLabel">Record</span></button>
+            <button class="btn" data-act="compare" id="compareBtn" disabled><svg viewBox="0 0 24 24"><path d="M4 8h12M12 4l4 4-4 4M20 16H8M12 12l-4 4 4 4"/></svg><span>Compare</span></button>
+            <button class="btn" data-act="peek" id="peekBtn"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span>Peek</span></button>
+          </div>
+          <div class="row">
+            <button class="btn small" data-act="resetUnit">Reset line</button>
+            <button class="btn small" data-act="skipPhase">Next phase</button>
+            <button class="btn small good" data-act="master">Mastered</button>
+          </div>
+          <div class="well stack" style="gap:10px">
+            <div class="spread">
+              <label class="field" style="flex:1">Reciter
+                <select id="qariSelect"></select>
+              </label>
+              <label class="field">Repeat
+                <select id="repeatSelect"><option value="1">×1</option><option value="3">×3</option><option value="5">×5</option><option value="10">×10</option></select>
+              </label>
+            </div>
+            <div id="mutunAudio" class="audio-bar" hidden></div>
+            <div class="faint" style="margin-bottom:-4px">Repetitions for each line</div>
+            <div class="row small">
+              <label class="field">Looking<input type="number" id="tLook" min="1" max="99" style="width:70px" /></label>
+              <label class="field">From memory<input type="number" id="tBlind" min="1" max="99" style="width:70px" /></label>
+              <label class="field">Linking<input type="number" id="tLink" min="0" max="99" style="width:70px" /></label>
+            </div>
+          </div>
+          <div>
+            <div class="spread small"><span id="pageProgLabel">Page progress</span><span id="pageProgNum" class="num"></span></div>
+            <div class="progress"><i id="pageProgBar" style="width:0"></i></div>
+          </div>
+          <div class="row" id="mutunTools" hidden>
+            <button class="btn small" data-act="openFiles">Books &amp; files</button>
+            <button class="btn small" data-act="toggleMasail" id="masailBtn" hidden>فيه مسائل</button>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ======================= TODAY ======================= -->
+    <section id="view-today" class="view" aria-labelledby="todayTitle">
+      <div class="stack">
+        <div class="spread">
+          <h1 id="todayTitle">Today</h1>
+          <select id="daySelect" aria-label="Day to plan"></select>
+        </div>
+        <div class="panel">
+          <div class="spread"><h2>Prayer times</h2><span class="faint" id="prayerSource"></span></div>
+          <div class="prayers" id="prayerGrid" style="margin-top:10px"></div>
+        </div>
+        <div id="excusedNotice" class="notice warn" hidden></div>
+        <div class="panel">
+          <div class="spread"><h2>Your day</h2><button class="btn small" data-act="openTimer">Focus timer</button></div>
+          <div class="timeline" id="timeline" style="margin-top:6px"></div>
+        </div>
+        <div class="panel">
+          <div class="spread">
+            <h2>When each session happens</h2>
+            <div class="row">
+              <button class="btn small" data-act="preset" data-preset="morning">Morning chain</button>
+              <button class="btn small" data-act="preset" data-preset="split">Spread over prayers</button>
+              <button class="btn small" data-act="copyWeek">Use for whole week</button>
+            </div>
+          </div>
+          <p class="faint" style="margin:6px 0 10px">Sessions are tied to prayers, so they move with the prayer times through the year.</p>
+          <div class="tracks" id="tracks"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= REVIEW ======================= -->
+    <section id="view-review" class="view" aria-labelledby="reviewTitle">
+      <div class="stack">
+        <div class="spread">
+          <h1 id="reviewTitle">Muraja'ah</h1>
+          <button class="btn small" data-act="openCheckin">Log a session</button>
+        </div>
+        <div id="seedCard"></div>
+        <div class="panel">
+          <div class="spread"><h2>Due today</h2><span class="faint" id="dueCount"></span></div>
+          <p class="faint" style="margin-top:4px">Weakest and most overdue first. After reciting, rate how it went — that decides when it comes back.</p>
+          <div class="due" id="dueList" style="margin-top:6px"></div>
+        </div>
+        <div class="panel">
+          <div class="spread"><h2>Qur'an pages</h2><span class="faint" id="heatLegend"></span></div>
+          <div class="heat" id="heat" style="margin-top:10px" aria-label="Memorized pages by strength"></div>
+          <div class="row" style="margin-top:12px">
+            <label class="field">From page<input type="number" id="addFrom" min="1" max="604" style="width:90px" /></label>
+            <label class="field">To page<input type="number" id="addTo" min="1" max="604" style="width:90px" /></label>
+            <button class="btn" data-act="addRange" style="align-self:flex-end">Add pages I know</button>
+          </div>
+        </div>
+        <div class="panel">
+          <h2>Dual-front plan</h2>
+          <div class="stack" style="gap:12px;margin-top:10px">
+            <div><div class="spread small"><span>Back: Juz' 30 → Sūrat Muḥammad (p. 604 → 507)</span><span class="num" id="backTxt"></span></div><div class="progress"><i id="backBar"></i></div></div>
+            <div><div class="spread small"><span>Front: al-Baqarah onward (p. 2 → 506)</span><span class="num" id="frontTxt"></span></div><div class="progress gilt"><i id="frontBar"></i></div></div>
+            <div><div class="spread small"><span>Mutūn lines mastered</span><span class="num" id="mutunTxt"></span></div><div class="progress"><i id="mutunProgBar"></i></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= HABITS ======================= -->
+    <section id="view-habits" class="view" aria-labelledby="habitsTitle">
+      <div class="stack">
+        <div class="spread"><h1 id="habitsTitle">Habits</h1>
+          <div class="row"><button class="btn small" data-act="openExcuse">Excuse a day</button><button class="btn small primary" data-act="newHabit">Add habit</button></div>
+        </div>
+        <div class="kpis" id="kpis"></div>
+        <div class="panel">
+          <div class="spread"><h2>This week</h2><span class="faint">A day counts when at least half your goals are done</span></div>
+          <div class="week" id="week" style="margin-top:12px"></div>
+        </div>
+        <div class="panel">
+          <h2>Goals</h2>
+          <div class="matrix-wrap" style="margin-top:8px"><table class="matrix" id="matrix"></table></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= SETTINGS ======================= -->
+    <section id="view-more" class="view" aria-labelledby="moreTitle">
+      <div class="stack">
+        <h1 id="moreTitle">Settings</h1>
+        <div class="panel stack">
+          <div class="spread"><h2>Prayer times</h2><span class="faint">Umm al-Qura method</span></div>
+          <p class="faint">Calculated on your phone with the Umm al-Qura method, so it works offline. In Saudi Arabia ʿIshāʾ is 90 min after Maghrib (120 in Ramaḍān). If your mosque or al-Moṣally differs by a minute or two, adjust it below.</p>
+          <div class="row">
+            <select id="cityPreset" aria-label="City" class="grow"></select>
+            <button class="btn small" data-act="geo">Use my location</button>
+          </div>
+          <div>
+            <div class="spread"><h3>Adjust (minutes)</h3><button class="btn small ghost" data-act="resetAdjust">Reset</button></div>
+            <div class="prayers adjust" id="adjustGrid" style="margin-top:8px"></div>
+          </div>
+        </div>
+
+        <div class="panel stack">
+          <h2>Muṣḥaf print</h2>
+          <div class="seg" role="group" aria-label="Muṣḥaf layout">
+            <button data-act="layout" data-layout="1441">1440–1441</button>
+            <button data-act="layout" data-layout="1421">1421</button>
+            <button data-act="layout" data-layout="1405">1405</button>
+          </div>
+          <p class="faint">All three are the King Fahd Complex Madinah Muṣḥaf (Ḥafṣ), 604 pages, 15 lines. To tell them apart, look at page 76: if it ends with the title of Sūrat an-Nisāʾ, your copy is the 1421 or 1405 print; if an-Nisāʾ starts at the top of page 77, it is the 1440–1441 print. Then page 586: at-Takwīr at the top means 1405. Line progress is kept separately for each print.</p>
+        </div>
+
+        <div class="panel stack">
+          <div class="spread"><h2>Mutūn books &amp; files</h2><button class="btn small primary" data-act="openFiles">Books &amp; files</button></div>
+          <p class="faint" id="filesSummary"></p>
+        </div>
+
+        <div class="panel stack">
+          <h2>Reminders</h2>
+          <label class="check"><input type="checkbox" id="remOn" /> Remind me before each planned session</label>
+          <label class="field">Minutes before<input type="number" id="remMin" min="0" max="120" style="width:90px" /></label>
+          <p class="faint" id="remNote"></p>
+          <button class="btn small" data-act="testReminder" style="align-self:flex-start">Send a test reminder</button>
+        </div>
+
+        <div class="panel stack">
+          <h2>Backup</h2>
+          <p class="faint">Your progress lives on this device. Export a backup now and then; import it to move to another phone or between the website and the app.</p>
+          <div class="row">
+            <button class="btn" data-act="export">Export backup</button>
+            <button class="btn" data-act="import">Import backup</button>
+            <input type="file" id="importFile" accept=".json,application/json" hidden />
+          </div>
+        </div>
+
+        <div class="panel stack small">
+          <h2>Sources</h2>
+          <div id="sources" class="muted"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="mini-bar" id="miniBar" aria-label="Practice">
+    <div class="mini-info"><span><span id="miniPhase">Looking</span> <span class="mini-dots" aria-hidden="true"><i data-p="look"></i><i data-p="blind"></i><i data-p="link"></i></span></span><b class="num" id="miniCount">0/10</b><span class="faint" id="miniLine"></span></div>
+    <button class="btn icon ghost" data-act="toDock" aria-label="More: record, compare, mastered"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+    <button class="btn icon ghost" data-act="peek" aria-label="Peek at the line"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    <button class="btn icon ghost" data-act="listen" id="miniListen" aria-label="Listen to the line"><svg viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></svg></button>
+    <button class="mini-tap" id="miniTap" data-act="tap" type="button">Count</button>
+  </div>
+  <input type="file" id="customAudioFile" accept="audio/*,.mp3,.m4a" hidden />
+  <input type="file" id="importBooks" accept=".pdf,application/pdf,audio/*,.mp3" multiple hidden />
+
+  <nav class="tabs" aria-label="Sections">
+    <button class="tab" data-act="tab" data-tab="studio" aria-current="page"><svg viewBox="0 0 24 24"><path d="M4 5c3-1 6-1 8 1 2-2 5-2 8-1v14c-3-1-6-1-8 1-2-2-5-2-8-1z"/><path d="M12 6v14"/></svg>Studio</button>
+    <button class="tab" data-act="tab" data-tab="today"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>Today</button>
+    <button class="tab" data-act="tab" data-tab="review"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 3-6.2"/><path d="M4 4v4h4"/></svg>Review<span class="dot" id="reviewDot" hidden></span></button>
+    <button class="tab" data-act="tab" data-tab="habits"><svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10"/></svg>Habits</button>
+    <button class="tab" data-act="tab" data-tab="more"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Settings</button>
+  </nav>
+
+  <!-- ======================= SHEETS ======================= -->
+  <div class="sheet-backdrop" id="sheet-timer" role="dialog" aria-modal="true" aria-labelledby="timerTitle">
+    <div class="sheet">
+      <div class="sheet-head"><div><h2 id="timerTitle">Focus timer</h2><p class="faint" id="timerSub"></p></div><button class="btn icon ghost" data-act="close" aria-label="Close">✕</button></div>
+      <div class="row" id="timerPresets"></div>
+      <div class="timer-face"><div class="big" id="timerClock">20:00</div></div>
+      <div class="row" style="justify-content:center"><button class="btn primary" data-act="timerToggle" id="timerToggle">Start</button><button class="btn" data-act="timerReset">Reset</button></div>
+      <p class="faint" style="text-align:center;margin-top:10px">When it finishes, the session is ticked off for today.</p>
+    </div>
+  </div>
+
+  <div class="sheet-backdrop" id="sheet-excuse" role="dialog" aria-modal="true" aria-labelledby="excuseTitle">
+    <div class="sheet stack">
+      <div class="sheet-head"><div><h2 id="excuseTitle">Excuse a day</h2><p class="faint">For illness, travel or an emergency. An excused day doesn't break your streak.</p></div><button class="btn icon ghost" data-act="close" aria-label="Close">✕</button></div>
+      <label class="field">Day<select id="excuseDay"></select></label>
+      <label class="field">Reason (required)<textarea id="excuseReason" rows="2" placeholder="e.g. Driving from Riyadh to Ha'il"></textarea></label>
+      <button class="btn warn" data-act="saveExcuse">Excuse this day</button>
+      <div><h3>This month <span class="faint" id="excuseCount"></span></h3><div class="list small" id="excuseList"></div></div>
+    </div>
+  </div>
+
+  <div class="sheet-backdrop" id="sheet-habit" role="dialog" aria-modal="true" aria-labelledby="habitTitle">
+    <div class="sheet stack">
+      <div class="sheet-head"><h2 id="habitTitle">Habit</h2><button class="btn icon ghost" data-act="close" aria-label="Close">✕</button></div>
+      <input type="hidden" id="habitId" />
+      <label class="field">Name<input type="text" id="habitName" placeholder="e.g. Morning adhkār" /></label>
+      <label class="field">Note<input type="text" id="habitNote" placeholder="Optional" /></label>
+      <div class="row">
+        <label class="field">Minutes<input type="number" id="habitMin" min="0" max="240" style="width:90px" /></label>
+        <label class="field">Days a week<input type="number" id="habitTarget" min="1" max="7" style="width:90px" /></label>
+        <label class="field grow">When<input type="text" id="habitWhen" placeholder="After Fajr" /></label>
+      </div>
+      <div class="spread"><button class="btn warn small" data-act="deleteHabit" id="habitDelete">Delete habit</button><button class="btn primary" data-act="saveHabit">Save habit</button></div>
+    </div>
+  </div>
+
+  <div class="sheet-backdrop" id="sheet-checkin" role="dialog" aria-modal="true" aria-labelledby="checkinTitle">
+    <div class="sheet stack">
+      <div class="sheet-head"><h2 id="checkinTitle">Log a session</h2><button class="btn icon ghost" data-act="close" aria-label="Close">✕</button></div>
+      <label class="field">What did you review?<input type="text" id="ciReview" placeholder="e.g. An-Nabaʾ to ʿAbasa" /></label>
+      <label class="field">What did you memorize?<input type="text" id="ciNew" placeholder="e.g. Half of p. 4" /></label>
+      <div class="row">
+        <label class="field">New pages go to<select id="ciTrack"><option value="back">Back (Juz' 30 →)</option><option value="front">Front (al-Baqarah →)</option><option value="none">No new pages</option></select></label>
+        <label class="field">Pages<input type="number" id="ciPages" step="0.5" min="0" style="width:90px" /></label>
+      </div>
+      <button class="btn primary" data-act="saveCheckin">Save session</button>
+      <div><h3>Recent</h3><div class="list small" id="ciList"></div></div>
+    </div>
+  </div>
+
+  <div class="sheet-backdrop" id="sheet-books" role="dialog" aria-modal="true" aria-labelledby="booksTitle">
+    <div class="sheet stack">
+      <div class="sheet-head"><h2 id="booksTitle">Choose a matn</h2><button class="btn icon ghost" data-act="close" aria-label="Close">✕</button></div>
+      <div class="book-list" id="bookList"></div>
+      <button class="btn small ghost" data-act="openFiles" style="align-self:flex-start">Books &amp; files (PDFs, readings)…</button>
+    </div>
+  </div>
+
+  <div class="sheet-backdrop" id="sheet-files" role="dialog" aria-modal="true" aria-labelledby="filesTitle">
+    <div class="sheet stack">
+      <div class="sheet-head"><div><h2 id="filesTitle">Books &amp; files</h2>
+        <p class="faint">The mutūn follow Shaykh ʿAbd al-Muḥsin al-Qāsim's printed editions line by line. Add his PDFs once to see the exact printed pages; they stay on this device only. The readings by ʿAbd al-ʿAzīz aṣ-Ṣīnī stream from the Shaykh's website — add the MP3s too if you want them offline.</p></div>
+        <button class="btn icon ghost" data-act="close" aria-label="Close">✕</button></div>
+      <div class="row">
+        <button class="btn primary" data-act="importBooks">Add PDFs / MP3s…</button>
+        <a class="btn small ghost" href="https://books.a-alqasim.com/mutoon" target="_blank" rel="noopener">Get the PDFs (official site)</a>
+      </div>
+      <div class="list small" id="filesList"></div>
+      <p class="faint" id="filesUsage"></p>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <audio id="player" preload="none"></audio>
+  <audio id="myPlayer" preload="none"></audio>
+
+  <script src="./vendor/adhan.min.js"></script>
+  <script src="./js/core.js"></script>
+  <script src="./js/files.js"></script>
+  <script src="./js/prayer.js"></script>
+  <script src="./js/studio.js"></script>
+  <script src="./js/today.js"></script>
+  <script src="./js/review.js"></script>
+  <script src="./js/habits.js"></script>
+  <script src="./js/app.js"></script>
+</body>
+</html>

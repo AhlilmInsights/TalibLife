@@ -1,0 +1,8 @@
+# never commit these
+*SECRET*
+*.jks
+*.keystore
+*.pdf
+*.mp3
+node_modules/
+android/
