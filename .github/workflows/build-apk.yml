@@ -112,6 +112,25 @@ jobs:
             --iconBackgroundColor '#10b981' --iconBackgroundColorDark '#10b981' \
             --splashBackgroundColor '#0F1E1C' --splashBackgroundColorDark '#0F1E1C'
 
+      # @capacitor/assets writes adaptive icons that point to mipmap/ic_launcher_background but, with a plain
+      # background colour, never creates that image, so resource linking fails. Point them at a colour instead.
+      - name: Fix the adaptive icon background
+        run: |
+          exec > >(tee -a "$GITHUB_WORKSPACE/build.log") 2>&1
+          RES=android/app/src/main/res
+          if ! ls $RES/mipmap-*/ic_launcher_background.* > /dev/null 2>&1; then
+            for f in $RES/mipmap-anydpi-v26/ic_launcher.xml $RES/mipmap-anydpi-v26/ic_launcher_round.xml; do
+              [ -f "$f" ] && sed -i 's#@mipmap/ic_launcher_background#@color/ic_launcher_background#g' "$f"
+            done
+            mkdir -p $RES/values
+            # never define the colour twice
+            grep -l 'name="ic_launcher_background"' $RES/values/*.xml 2>/dev/null | grep -v '/ic_launcher_background.xml$' \
+              | xargs -r sed -i '/name="ic_launcher_background"/d'
+            printf '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">#10b981</color>\n</resources>\n' > $RES/values/ic_launcher_background.xml
+            echo "Adaptive icon now uses a colour background."
+          fi
+          cat $RES/mipmap-anydpi-v26/ic_launcher.xml || true
+
       # Same signing key on every build = the phone accepts updates without uninstalling (and losing data).
       # One-time setup: add the repository secret ANDROID_DEBUG_KEYSTORE_BASE64 (see README).
       - name: Use your fixed signing key (if you added the secret)
