@@ -22,7 +22,8 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # pinned: ubuntu-latest is moving to Ubuntu 26 (Oct 2026), whose image may not carry the Android SDK
+    runs-on: ubuntu-24.04
     steps:
       - name: Get the code
         uses: actions/checkout@v4
@@ -38,9 +39,15 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: Set up the Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Copy the web app into www/
         run: |
           mkdir -p www
+          for f in index.html manifest.json css js data fonts vendor icons; do
+            [ -e "$f" ] || { echo "::error::'$f' is missing from the repository — upload habitflow.zip again."; exit 1; }
+          done
           cp index.html manifest.json www/
           cp -r css js data fonts vendor icons www/
 
@@ -93,19 +100,38 @@ jobs:
         run: |
           if [ -n "$KEYSTORE_B64" ]; then
             mkdir -p ~/.android
-            echo "$KEYSTORE_B64" | base64 --decode > ~/.android/debug.keystore
-            echo "Using the saved signing key."
+            # spaces or line breaks added while copy-pasting (common on a phone) are removed first
+            if printf '%s' "$KEYSTORE_B64" | tr -d ' \r\n\t' | base64 --decode > /tmp/debug.keystore 2>/dev/null \
+               && keytool -list -keystore /tmp/debug.keystore -storepass android > /dev/null 2>&1; then
+              mv /tmp/debug.keystore ~/.android/debug.keystore
+              echo "Using the saved signing key."
+            else
+              echo "::warning::The ANDROID_DEBUG_KEYSTORE_BASE64 secret is not a complete key (part of it was probably lost while pasting). Building with a random key instead — paste the secret again for future builds."
+            fi
           else
             echo "::warning::No ANDROID_DEBUG_KEYSTORE_BASE64 secret — this APK gets a random key, so to install a later build you'd have to uninstall first (export a backup before you do!)."
           fi
 
       - name: Build the APK
         run: |
-          npx cap sync android
+          set -o pipefail
+          npx cap sync android 2>&1 | tee build.log
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee -a ../build.log
           cp app/build/outputs/apk/debug/app-debug.apk ../HabitFlow.apk
+
+      # If anything above fails, put the reason in the "Annotations" box (easy to read on a phone).
+      - name: Show why the build failed
+        if: failure()
+        run: |
+          if [ -f build.log ]; then
+            msg=$(grep -E -A8 "What went wrong|error:|ERROR|FAILURE|Could not" build.log | head -40 | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
+            [ -n "$msg" ] || msg=$(tail -25 build.log | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=Why the APK build failed::$msg"
+          else
+            echo "::error title=Why the APK build failed::It stopped before the Gradle build — open the red step in the list of steps."
+          fi
 
       - name: Keep a copy in the Actions run
         uses: actions/upload-artifact@v4
